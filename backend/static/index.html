@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Authenticity Detector</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h2 {
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-area input {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .upload-text {
+            color: #666;
+            font-size: 1em;
+        }
+
+        .upload-text p:first-child {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 15px;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background: #764ba2;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .result-card {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .verdict {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .verdict.real {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .verdict.ai {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .score-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .score-item:last-child {
+            border-bottom: none;
+        }
+
+        .score-bar {
+            width: 100px;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .score-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+        }
+
+        .videos-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .video-item {
+            background: #f8f9ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid #667eea;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .video-item:hover {
+            background: #f0f2ff;
+            transform: translateX(5px);
+        }
+
+        .video-item.real {
+            border-left-color: #28a745;
+        }
+
+        .video-item.ai {
+            border-left-color: #dc3545;
+        }
+
+        .video-info h4 {
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .video-info p {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .video-verdict {
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        .video-verdict.real {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .video-verdict.ai {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .entity-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .entity-tag {
+            background: #667eea;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.85em;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+
+        .detail-view {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .detail-view.active {
+            display: flex;
+        }
+
+        .detail-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 Video Authenticity Detector</h1>
+            <p>Detect AI-Generated Videos with Advanced Analysis</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Upload Section -->
+            <div class="card">
+                <h2>Upload Video</h2>
+                <div class="upload-area" id="uploadArea">
+                    <input type="file" id="fileInput" accept="video/*">
+                    <div class="upload-icon">📹</div>
+                    <div class="upload-text">
+                        <p>Click to upload or drag and drop</p>
+                        <p>MP4, AVI, MOV, etc.</p>
+                    </div>
+                </div>
+                
+                <button id="uploadBtn" style="width: 100%; display: none;">Upload</button>
+
+                <div class="loading" id="loading">
+                    <p>Analyzing video...</p>
+                    <div class="spinner"></div>
+                </div>
+
+                <div class="error" id="error"></div>
+                <div class="success" id="success"></div>
+
+                <div class="results" id="results">
+                    <div class="result-card">
+                        <h3 id="filename"></h3>
+                        <div id="verdict" class="verdict"></div>
+                        
+                        <div style="margin-top: 15px;">
+                            <strong>Analysis Scores:</strong>
+                            <div class="score-item">
+                                <span>Motion Score</span>
+                                <div class="score-bar">
+                                    <div class="score-fill" id="motionBar"></div>
+                                </div>
+                                <span id="motionScore">0</span>
+                            </div>
+                            <div class="score-item">
+                                <span>Pose Score</span>
+                                <div class="score-bar">
+                                    <div class="score-fill" id="poseBar"></div>
+                                </div>
+                                <span id="poseScore">0</span>
+                            </div>
+                            <div class="score-item">
+                                <span>Physics Score</span>
+                                <div class="score-bar">
+                                    <div class="score-fill" id="physicsBar"></div>
+                                </div>
+                                <span id="physicsScore">0</span>
+                            </div>
+                            <div class="score-item">
+                                <span><strong>Overall Score</strong></span>
+                                <div class="score-bar">
+                                    <div class="score-fill" id="overallBar"></div>
+                                </div>
+                                <span id="overallScore">0</span>
+                            </div>
+                        </div>
+
+                        <div id="entities" class="entity-tags"></div>
+                        <div id="frameInfo" style="margin-top: 10px; color: #666; font-size: 0.9em;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Videos List Section -->
+            <div class="card">
+                <h2>Analysis History</h2>
+                <div class="videos-list" id="videosList">
+                    <p style="text-align: center; color: #999;">No videos yet. Upload one to get started!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail View Modal -->
+    <div class="detail-view" id="detailView">
+        <div class="detail-content">
+            <button class="close-btn" onclick="closeDetail()">✕</button>
+            <div id="detailContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // Upload handling
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const success = document.getElementById('success');
+        const results = document.getElementById('results');
+
+        // Click to upload
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#764ba2';
+            uploadArea.style.background = '#f0f2ff';
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.style.borderColor = '#667eea';
+            uploadArea.style.background = '#f8f9ff';
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#667eea';
+            uploadArea.style.background = '#f8f9ff';
+            fileInput.files = e.dataTransfer.files;
+            fileInput.dispatchEvent(new Event('change'));
+        });
+
+        // File selection
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                uploadBtn.style.display = 'block';
+            }
+        });
+
+        // Upload button
+        uploadBtn.addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            success.style.display = 'none';
+            results.style.display = 'none';
+            uploadBtn.disabled = true;
+
+            try {
+                const response = await fetch('/analyze-video', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    displayResults(data);
+                    success.style.display = 'block';
+                    success.innerHTML = '✓ Video analyzed successfully!';
+                    loadVideos();
+                } else {
+                    error.style.display = 'block';
+                    error.innerHTML = '✗ Error: ' + (data.error || 'Unknown error');
+                }
+            } catch (err) {
+                error.style.display = 'block';
+                error.innerHTML = '✗ Error: ' + err.message;
+            } finally {
+                loading.style.display = 'none';
+                uploadBtn.disabled = false;
+                uploadBtn.style.display = 'none';
+                fileInput.value = '';
+            }
+        });
+
+        function displayResults(data) {
+            const analysis = data.authenticity_analysis;
+            
+            document.getElementById('filename').textContent = data.filename;
+            
+            const verdictEl = document.getElementById('verdict');
+            const isReal = analysis.verdict === 'Real';
+            verdictEl.textContent = analysis.verdict;
+            verdictEl.className = 'verdict ' + (isReal ? 'real' : 'ai');
+
+            // Update scores and bars
+            updateScoreBar('motionScore', 'motionBar', analysis.motion_score);
+            updateScoreBar('poseScore', 'poseBar', analysis.pose_score);
+            updateScoreBar('physicsScore', 'physicsBar', analysis.physics_score);
+            updateScoreBar('overallScore', 'overallBar', analysis.overall_score);
+
+            // Entities
+            const entitiesEl = document.getElementById('entities');
+            if (data.detected_entities.length > 0) {
+                entitiesEl.innerHTML = '<strong style="display: block; margin-bottom: 5px;">🔍 Detected:</strong>' +
+                    data.detected_entities.map(e => `<span class="entity-tag">${e}</span>`).join('');
+            } else {
+                entitiesEl.innerHTML = '';
+            }
+
+            // Frame info
+            document.getElementById('frameInfo').textContent = 
+                `📊 ${data.num_frames} frames | ${data.num_detections} detections`;
+
+            results.style.display = 'block';
+        }
+
+        function updateScoreBar(labelId, barId, score) {
+            document.getElementById(labelId).textContent = score.toFixed(3);
+            document.getElementById(barId).style.width = (score * 100) + '%';
+        }
+
+        async function loadVideos() {
+            try {
+                const response = await fetch('/videos');
+                const data = await response.json();
+
+                const videosList = document.getElementById('videosList');
+
+                if (data.total === 0) {
+                    videosList.innerHTML = '<p style="text-align: center; color: #999;">No videos yet. Upload one to get started!</p>';
+                    return;
+                }
+
+                videosList.innerHTML = data.videos.map(video => {
+                    const isReal = video.verdict === 'Real';
+                    const date = new Date(video.upload_date).toLocaleDateString();
+                    return `
+                        <div class="video-item ${isReal ? 'real' : 'ai'}" onclick="showDetail(${video.id})">
+                            <div class="video-info">
+                                <h4>📹 ${video.filename}</h4>
+                                <p>${date} • ${(video.file_size / 1024 / 1024).toFixed(2)} MB • ${video.num_frames} frames</p>
+                            </div>
+                            <div>
+                                <div class="video-verdict ${isReal ? 'real' : 'ai'}">
+                                    ${video.verdict}
+                                </div>
+                                <div style="font-size: 0.85em; color: #666; margin-top: 5px;">
+                                    Score: ${video.authenticity_score.toFixed(3)}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error('Error loading videos:', err);
+            }
+        }
+
+        async function showDetail(videoId) {
+            try {
+                const response = await fetch(`/videos/${videoId}`);
+                const video = await response.json();
+
+                const isReal = video.verdict === 'Real';
+                const date = new Date(video.upload_date).toLocaleDateString();
+
+                let html = `
+                    <h2>${video.filename}</h2>
+                    <div class="verdict ${isReal ? 'real' : 'ai'}" style="margin: 20px 0;">
+                        ${video.verdict}
+                    </div>
+                    
+                    <div class="result-card">
+                        <strong>Upload Information:</strong>
+                        <div class="score-item">
+                            <span>Date</span>
+                            <span>${date}</span>
+                        </div>
+                        <div class="score-item">
+                            <span>File Size</span>
+                            <span>${(video.file_size / 1024 / 1024).toFixed(2)} MB</span>
+                        </div>
+                        <div class="score-item">
+                            <span>Duration</span>
+                            <span>${video.duration.toFixed(2)} seconds</span>
+                        </div>
+                        <div class="score-item">
+                            <span>Frames</span>
+                            <span>${video.num_frames}</span>
+                        </div>
+                    </div>
+
+                    <div class="result-card">
+                        <strong>Analysis Scores:</strong>
+                        <div class="score-item">
+                            <span>Motion</span>
+                            <span>${video.authenticity_analysis.motion_score.toFixed(3)}</span>
+                        </div>
+                        <div class="score-item">
+                            <span>Pose</span>
+                            <span>${video.authenticity_analysis.pose_score.toFixed(3)}</span>
+                        </div>
+                        <div class="score-item">
+                            <span>Physics</span>
+                            <span>${video.authenticity_analysis.physics_score.toFixed(3)}</span>
+                        </div>
+                        <div class="score-item">
+                            <span><strong>Overall</strong></span>
+                            <span><strong>${video.authenticity_analysis.overall_score.toFixed(3)}</strong></span>
+                        </div>
+                    </div>
+                `;
+
+                if (video.detected_entities.length > 0) {
+                    html += `
+                        <div class="result-card">
+                            <strong>Detected Entities:</strong>
+                            <div class="entity-tags">
+                                ${video.detected_entities.map(e => `<span class="entity-tag">${e}</span>`).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                document.getElementById('detailContent').innerHTML = html;
+                document.getElementById('detailView').classList.add('active');
+            } catch (err) {
+                console.error('Error loading details:', err);
+            }
+        }
+
+        function closeDetail() {
+            document.getElementById('detailView').classList.remove('active');
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('detailView').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('detailView')) {
+                closeDetail();
+            }
+        });
+
+        // Load videos on page load
+        loadVideos();
+    </script>
+</body>
+</html>

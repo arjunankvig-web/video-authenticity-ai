@@ -63,7 +63,12 @@ def validate_pose(frames):
     Validates pose smoothness across frames.
     Returns a score between 0 and 1 where 1 is perfect pose smoothness.
     """
-    _initialize_pose_landmarker()
+    try:
+        _initialize_pose_landmarker()
+    except FileNotFoundError:
+        # model failed to download; skip pose validation rather than crash
+        print("Warning: pose landmarker model missing, skipping pose validation")
+        return 0.0
     
     if not frames or len(frames) == 0:
         return 0.0
