@@ -8,10 +8,28 @@ venv/
 .venv/
 
 uploads/
+backend/uploads/
 *.mp4
 *.avi
+*.mov
 
 .DS_Store
 .vscode/
 
+# Model files (large binary files)
+*.pt
+yolo*.pt
+pose_landmarker*.tflite
 models/*.pt
+backend/yolo*.pt
+backend/*.pt
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+videos.db
+
+# Temporary files
+*.tmp
+*.log
